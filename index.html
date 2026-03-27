@@ -93,6 +93,9 @@ footer a{color:var(--orange);text-decoration:none}
 <div class="form-group"><label>Last Name *</label><input type="text" id="lastName" required placeholder="Last name"></div>
 </div>
 <div class="form-row">
+<div class="form-group"><label>Email *</label><input type="email" id="playerEmail" required placeholder="Email for receipt &amp; confirmation"></div>
+</div>
+<div class="form-row">
 <div class="form-group">
 <label>Gender *</label>
 <select id="gender" onchange="rebuildDivisions()">
@@ -354,9 +357,14 @@ async function handlePayment() {
     const errEl = document.getElementById('card-errors');
     const firstName = document.getElementById('firstName').value.trim();
     const lastName = document.getElementById('lastName').value.trim();
+    const playerEmail = document.getElementById('playerEmail').value.trim();
 
     if (!firstName || !lastName) {
         errEl.textContent = 'Please enter your first and last name.';
+        return;
+    }
+    if (!playerEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(playerEmail)) {
+        errEl.textContent = 'Please enter a valid email address for your receipt.';
         return;
     }
 
@@ -376,7 +384,7 @@ async function handlePayment() {
                 amount: totalCents,
                 currency: 'usd',
                 playerName: firstName + ' ' + lastName,
-                playerEmail: '', // Can be passed from Jotform via URL params later
+                playerEmail: playerEmail,
                 divisions: getSelectedDivisionsString(),
                 divisionCount: document.querySelectorAll('#divisionsContainer input[type="checkbox"]:checked').length
             })
@@ -392,7 +400,7 @@ async function handlePayment() {
         const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
             payment_method: {
                 card: cardElement,
-                billing_details: { name: firstName + ' ' + lastName }
+                billing_details: { name: firstName + ' ' + lastName, email: playerEmail }
             }
         });
 
@@ -402,16 +410,26 @@ async function handlePayment() {
             btn.classList.remove('processing');
             updateSummary();
         } else if (paymentIntent.status === 'succeeded') {
+            // Disable entire form to prevent double charges
             btn.style.display = 'none';
+            document.querySelectorAll('input, select').forEach(el => el.disabled = true);
+            cardElement.update({ disabled: true });
+
+            const total = btn.dataset.total;
+            const divList = getSelectedDivisionsString();
             document.getElementById('paymentSuccess').style.display = 'block';
             document.getElementById('paymentSuccess').innerHTML = `
                 <div class="success-msg">
                     <h3>✓ Payment Successful!</h3>
-                    <p>Welcome to the TYPTI Pro $100K Tournament. You will receive a confirmation email shortly.<br>Questions? Contact <a href="mailto:Info@TYPTI.com" style="color:var(--orange)">Info@TYPTI.com</a></p>
+                    <p><strong>${firstName} ${lastName}</strong> — $${total} paid</p>
+                    <p style="font-size:0.82rem;color:rgba(255,255,255,0.6);margin-top:8px">${divList}</p>
+                    <p style="margin-top:12px">Welcome to the TYPTI Pro $100K Tournament!<br>A confirmation receipt will be sent to <strong>${playerEmail}</strong>.<br>Questions? Contact <a href="mailto:Info@TYPTI.com" style="color:var(--orange)">Info@TYPTI.com</a></p>
                 </div>`;
+            // Update summary to show paid state
+            document.querySelector('.summary-title').textContent = '✓ PAID';
         }
     } catch (e) {
-        errEl.textContent = 'Payment failed. Please try again or contact Info@TYPTI.com';
+        errEl.textContent = e.message || 'Payment failed. Please try again or contact Info@TYPTI.com';
         btn.disabled = false;
         btn.classList.remove('processing');
         updateSummary();
@@ -422,6 +440,23 @@ function getSelectedDivisionsString() {
     return [...document.querySelectorAll('#divisionsContainer input[type="checkbox"]:checked')]
         .map(c => c.dataset.name).join(', ');
 }
+
+/* ---- Jotform URL Parameter Pre-fill ---- */
+/* Jotform redirect URL format:
+   https://playtypti.github.io/payment/?fname=John&lname=Doe&email=john@email.com
+   Set this in Jotform: Settings → Thank You Page → Redirect URL with query params */
+(function prefillFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    const fields = {
+        'fname': 'firstName',
+        'lname': 'lastName',
+        'email': 'playerEmail'
+    };
+    for (const [param, fieldId] of Object.entries(fields)) {
+        const val = params.get(param);
+        if (val) document.getElementById(fieldId).value = decodeURIComponent(val);
+    }
+})();
 
 /* ---- Initialize ---- */
 rebuildDivisions();
