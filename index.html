@@ -437,6 +437,9 @@ function getSelectedDivisionsString() {
         .map(c => c.dataset.name).join(', ');
 }
 
+/* ---- Initialize division cards (must run before prefill so prefill can check boxes) ---- */
+rebuildDivisions();
+
 /* ---- Jotform URL Parameter Pre-fill ---- */
 /* Full redirect URL for Jotform (Settings → Thank You Page → Redirect to URL):
    https://playtypti.github.io/payment/?fname={firstName}&lname={lastName}&email={email}&gender={gender}&age={age}&rating={racketRating}&d1={professionalDivisions92}&d2={professionalDivisions}&d3={professionalDivisions85}&d4={25General93}&d5={UNIQUE_NAME}&d6={UNIQUE_NAME}...
@@ -533,9 +536,6 @@ function getSelectedDivisionsString() {
         }
     }
 })();
-
-/* ---- Initialize ---- */
-rebuildDivisions();
 
 /* ---- PRICING SELF-TEST (runs once in console) ---- */
 (function selfTest() {
