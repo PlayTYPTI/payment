@@ -442,19 +442,52 @@ function getSelectedDivisionsString() {
 }
 
 /* ---- Jotform URL Parameter Pre-fill ---- */
-/* Jotform redirect URL format:
-   https://playtypti.github.io/payment/?fname=John&lname=Doe&email=john@email.com
-   Set this in Jotform: Settings → Thank You Page → Redirect URL with query params */
+/* Jotform redirect URL format (set in Jotform: Settings → Thank You Page → Redirect to URL):
+   https://playtypti.github.io/payment/?fname={firstName}&lname={lastName}&email={email}&gender={gender}&dob={dob}&rating={rating}&divisions={divisions}
+   Replace {fieldName} tokens with your actual Jotform field IDs e.g. {q3_firstName} */
 (function prefillFromURL() {
     const params = new URLSearchParams(window.location.search);
-    const fields = {
-        'fname': 'firstName',
-        'lname': 'lastName',
-        'email': 'playerEmail'
-    };
-    for (const [param, fieldId] of Object.entries(fields)) {
+
+    /* -- Text fields -- */
+    const textFields = { 'fname': 'firstName', 'lname': 'lastName', 'email': 'playerEmail' };
+    for (const [param, fieldId] of Object.entries(textFields)) {
         const val = params.get(param);
         if (val) document.getElementById(fieldId).value = decodeURIComponent(val);
+    }
+
+    /* -- Profile fields (gender, dob, rating) — must be set before rebuildDivisions() -- */
+    const gender = params.get('gender');
+    const dob    = params.get('dob');
+    const rating = params.get('rating');
+    if (gender) document.getElementById('gender').value = gender;
+    if (dob)    document.getElementById('dob').value    = dob;
+    if (rating) document.getElementById('rating').value = rating;
+
+    /* -- Rebuild divisions based on pre-filled profile -- */
+    if (gender || dob || rating) rebuildDivisions();
+
+    /* -- Auto-check divisions passed as comma-separated names e.g. divisions=Men%27s+Singles+%E2%80%94+Professional,Men%27s+Doubles+%E2%80%94+4.5%2B+General -- */
+    const divisionsParam = params.get('divisions');
+    if (divisionsParam) {
+        const selected = divisionsParam.split(',').map(d => decodeURIComponent(d.trim()));
+        document.querySelectorAll('#divisionsContainer input[type="checkbox"]').forEach(cb => {
+            if (selected.some(s => s.toLowerCase() === cb.dataset.name.toLowerCase()) && !cb.disabled) {
+                cb.checked = true;
+            }
+        });
+        updateSummary();
+    }
+
+    /* -- Show pre-fill notice and lock player info fields if data came from Jotform -- */
+    const fromJotform = params.has('fname') || params.has('gender') || params.has('divisions');
+    if (fromJotform) {
+        const playerSection = document.querySelector('.section-label');
+        if (playerSection) {
+            const note = document.createElement('p');
+            note.style.cssText = 'font-size:0.82rem;color:rgba(255,255,255,0.45);margin:-8px 0 16px;font-style:italic;';
+            note.textContent = '✓ Pre-filled from your registration form — verify details below before paying.';
+            playerSection.insertAdjacentElement('afterend', note);
+        }
     }
 })();
 
