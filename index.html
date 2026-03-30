@@ -502,7 +502,7 @@ function getSelectedDivisionsString() {
     const allSelected = [];
     const legacyDiv = params.get('divisions');
     if (legacyDiv) legacyDiv.split(',').forEach(d => { const t = d.trim(); if (t) allSelected.push(t); });
-    for (let i = 1; i <= 20; i++) {
+    for (let i = 1; i <= 30; i++) {
         const v = params.get(`d${i}`);
         if (v) v.split(',').forEach(d => { const t = d.trim(); if (t) allSelected.push(t); });
     }
