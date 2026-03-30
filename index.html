@@ -442,9 +442,9 @@ function getSelectedDivisionsString() {
 }
 
 /* ---- Jotform URL Parameter Pre-fill ---- */
-/* Jotform redirect URL format (set in Jotform: Settings → Thank You Page → Redirect to URL):
-   https://playtypti.github.io/payment/?fname={firstName}&lname={lastName}&email={email}&gender={gender}&dob={dob}&rating={rating}&divisions={divisions}
-   Replace {fieldName} tokens with your actual Jotform field IDs e.g. {q3_firstName} */
+/* Full redirect URL for Jotform (Settings → Thank You Page → Redirect to URL):
+   https://playtypti.github.io/payment/?fname={firstName}&lname={lastName}&email={email}&gender={gender}&age={age}&rating={racketRating}&d1={professionalDivisions92}&d2={professionalDivisions}&d3={professionalDivisions85}&d4={25General93}&d5={UNIQUE_NAME}&d6={UNIQUE_NAME}...
+   Add &dN={uniqueName} for every remaining division group field in Jotform. */
 (function prefillFromURL() {
     const params = new URLSearchParams(window.location.search);
 
@@ -455,32 +455,74 @@ function getSelectedDivisionsString() {
         if (val) document.getElementById(fieldId).value = decodeURIComponent(val);
     }
 
-    /* -- Profile fields (gender, dob, rating) — must be set before rebuildDivisions() -- */
+    /* -- Gender: normalize to lowercase (Jotform may send "Male"/"Female") -- */
     const gender = params.get('gender');
-    const dob    = params.get('dob');
-    const rating = params.get('rating');
-    if (gender) document.getElementById('gender').value = gender;
-    if (dob)    document.getElementById('dob').value    = dob;
-    if (rating) document.getElementById('rating').value = rating;
+    if (gender) document.getElementById('gender').value = gender.toLowerCase().trim();
 
-    /* -- Rebuild divisions based on pre-filled profile -- */
-    if (gender || dob || rating) rebuildDivisions();
+    /* -- Age → synthetic DOB (Jotform has Age field, not DOB) --
+       Uses tournament date 2026-05-20 as reference: birthYear = 2026 - age */
+    const dob = params.get('dob');
+    const age = params.get('age');
+    if (dob) {
+        document.getElementById('dob').value = dob;
+    } else if (age && !isNaN(parseInt(age, 10))) {
+        document.getElementById('dob').value = `${2026 - parseInt(age, 10)}-05-20`;
+    }
 
-    /* -- Auto-check divisions passed as comma-separated names e.g. divisions=Men%27s+Singles+%E2%80%94+Professional,Men%27s+Doubles+%E2%80%94+4.5%2B+General -- */
-    const divisionsParam = params.get('divisions');
-    if (divisionsParam) {
-        const selected = divisionsParam.split(',').map(d => decodeURIComponent(d.trim()));
+    /* -- Rating: accept 'rating' or 'racketRating', map first numeric value to payment page keys --
+       Jotform may send "2.5 - 3.0 (Beginner)" etc.; we extract the leading number. */
+    const rawRating = (params.get('rating') || params.get('racketRating') || '').trim();
+    if (rawRating) {
+        const m = rawRating.match(/(\d+(?:\.\d+)?)/);
+        if (m) {
+            const n = parseFloat(m[1]);
+            document.getElementById('rating').value =
+                n < 3.0 ? '2.5' : n < 4.0 ? '3.0' : n < 5.0 ? '4.0' : '5.0';
+        }
+    }
+
+    /* -- Rebuild divisions now that gender/dob/rating are set -- */
+    if (gender || dob || age || rawRating) rebuildDivisions();
+
+    /* -- Collect all division selections from d1..d20 params and the legacy 'divisions' param --
+       Jotform checkbox groups pass selected option text(s), possibly comma-separated.
+       We use fuzzy matching to map Jotform labels (which include emojis & decorators)
+       to the clean payment page names e.g. "Men's Singles — Professional". */
+    function stripDecorators(s) {
+        return s
+            .replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]/gu, '') /* strip emoji */
+            .replace(/[·•]/g, '')            /* strip middle dots */
+            .replace(/\bMedal\b/gi, '')      /* strip "Medal" label */
+            .replace(/\s{2,}/g, ' ')         /* collapse spaces */
+            .replace(/\s*—\s*$/, '')         /* trailing em-dash */
+            .trim()
+            .toLowerCase();
+    }
+
+    const allSelected = [];
+    const legacyDiv = params.get('divisions');
+    if (legacyDiv) legacyDiv.split(',').forEach(d => { const t = d.trim(); if (t) allSelected.push(t); });
+    for (let i = 1; i <= 20; i++) {
+        const v = params.get(`d${i}`);
+        if (v) v.split(',').forEach(d => { const t = d.trim(); if (t) allSelected.push(t); });
+    }
+
+    if (allSelected.length > 0) {
         document.querySelectorAll('#divisionsContainer input[type="checkbox"]').forEach(cb => {
-            if (selected.some(s => s.toLowerCase() === cb.dataset.name.toLowerCase()) && !cb.disabled) {
-                cb.checked = true;
+            if (cb.disabled) return;
+            const cbClean = stripDecorators(cb.dataset.name); /* e.g. "men's singles — professional" */
+            for (const sel of allSelected) {
+                if (stripDecorators(sel).includes(cbClean)) {
+                    cb.checked = true;
+                    break;
+                }
             }
         });
         updateSummary();
     }
 
-    /* -- Show pre-fill notice and lock player info fields if data came from Jotform -- */
-    const fromJotform = params.has('fname') || params.has('gender') || params.has('divisions');
-    if (fromJotform) {
+    /* -- Show pre-fill notice if data came from Jotform -- */
+    if (params.has('fname') || params.has('gender') || params.has('age') || params.has('d1')) {
         const playerSection = document.querySelector('.section-label');
         if (playerSection) {
             const note = document.createElement('p');
