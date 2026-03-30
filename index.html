@@ -496,7 +496,8 @@ rebuildDivisions();
         return s
             .replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]/gu, '') /* strip emoji */
             .replace(/[·•]/g, '')            /* strip middle dots */
-            .replace(/\bMedal\b/gi, '')      /* strip "Medal" label */
+            .replace(/\bMedall?\b/gi, '')    /* strip "Medal"/"Medall" typo */
+            .replace(/\+/g, '')              /* strip + (URL decoding converts 4.5+ → "4.5 ") */
             .replace(/\s{2,}/g, ' ')         /* collapse spaces */
             .replace(/\s*—\s*$/, '')         /* trailing em-dash */
             .trim()
