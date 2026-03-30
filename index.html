@@ -105,8 +105,8 @@ footer a{color:var(--orange);text-decoration:none}
 </select>
 </div>
 <div class="form-group">
-<label>Date of Birth *</label>
-<input type="date" id="dob" onchange="rebuildDivisions()" max="2026-05-20">
+<label>Age on May 20th *</label>
+<input type="number" id="dob" onchange="rebuildDivisions()" min="5" max="99" placeholder="e.g. 23">
 </div>
 </div>
 <div class="form-row">
@@ -197,15 +197,11 @@ const DIVISION_CATEGORIES = [
     { title:'12U Divisions', suffix:'12U', tier:'12U', type:'junior', events:EVENTS }
 ];
 
-/* ---- Age Calculation as of May 20 2026 ---- */
-function calcAge(dobStr) {
-    if (!dobStr) return null;
-    const dob = new Date(dobStr + 'T00:00:00');
-    const ref = new Date('2026-05-20T00:00:00');
-    let age = ref.getFullYear() - dob.getFullYear();
-    const mDiff = ref.getMonth() - dob.getMonth();
-    if (mDiff < 0 || (mDiff === 0 && ref.getDate() < dob.getDate())) age--;
-    return age;
+/* ---- Age as of May 20 2026 — field is now a direct number input ---- */
+function calcAge(val) {
+    if (!val && val !== 0) return null;
+    const n = parseInt(val, 10);
+    return isNaN(n) ? null : n;
 }
 
 /* ---- Eligibility Layer 1: Gender ---- */
@@ -459,14 +455,19 @@ function getSelectedDivisionsString() {
     const gender = params.get('gender');
     if (gender) document.getElementById('gender').value = gender.toLowerCase().trim();
 
-    /* -- Age → synthetic DOB (Jotform has Age field, not DOB) --
-       Uses tournament date 2026-05-20 as reference: birthYear = 2026 - age */
+    /* -- Age: field now accepts a plain number (age on May 20th) -- */
     const dob = params.get('dob');
     const age = params.get('age');
-    if (dob) {
-        document.getElementById('dob').value = dob;
-    } else if (age && !isNaN(parseInt(age, 10))) {
-        document.getElementById('dob').value = `${2026 - parseInt(age, 10)}-05-20`;
+    if (age && !isNaN(parseInt(age, 10))) {
+        document.getElementById('dob').value = parseInt(age, 10);
+    } else if (dob) {
+        /* legacy DOB string fallback — compute age and show the number */
+        const dobDate = new Date(dob + 'T00:00:00');
+        const ref = new Date('2026-05-20T00:00:00');
+        let computed = ref.getFullYear() - dobDate.getFullYear();
+        const md = ref.getMonth() - dobDate.getMonth();
+        if (md < 0 || (md === 0 && ref.getDate() < dobDate.getDate())) computed--;
+        if (!isNaN(computed)) document.getElementById('dob').value = computed;
     }
 
     /* -- Rating: accept 'rating' or 'racketRating', map first numeric value to payment page keys --
