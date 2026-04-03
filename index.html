@@ -307,11 +307,11 @@ function updateSummary() {
 
     const hasAnyPro = proItems.length > 0;
     const membership = 50;
-    const baseEntry = hasAnyPro ? 100 : 50;
+    const baseEntry = hasAnyPro ? 90 : 60;
 
     // Progressive slot pricing
-    const proSlots = [100, 75, 50];
-    const otherSlots = [50, 40, 25];
+    const proSlots = [90, 75, 60];
+    const otherSlots = [60, 50, 40];
 
     let lines = [];
     let total = membership + baseEntry;
@@ -326,7 +326,7 @@ function updateSummary() {
         if (slotIndex < 3) {
             slotPrice = isPro ? proSlots[slotIndex] : otherSlots[slotIndex];
         } else {
-            slotPrice = 25;
+            slotPrice = 40;
         }
         const label = slotIndex >= 3 ? `${cb.dataset.name} (Amateur Entry)` : cb.dataset.name;
         lines.push({ label, price: slotPrice, locked: false });
@@ -541,17 +541,17 @@ rebuildDivisions();
 /* ---- PRICING SELF-TEST (runs once in console) ---- */
 (function selfTest() {
     function simulate(proCount, otherCount) {
-        const proSlots = [100,75,50];
-        const otherSlots = [50,40,25];
+        const proSlots = [90,75,60];
+        const otherSlots = [60,50,40];
         const hasP = proCount > 0;
-        let t = 50 + (hasP ? 100 : 50);
+        let t = 50 + (hasP ? 90 : 60);
         let s = 0;
-        for (let i = 0; i < proCount; i++) { t += s < 3 ? proSlots[s] : 25; s++; }
-        for (let i = 0; i < otherCount; i++) { t += s < 3 ? otherSlots[s] : 25; s++; }
+        for (let i = 0; i < proCount; i++) { t += s < 3 ? proSlots[s] : 40; s++; }
+        for (let i = 0; i < otherCount; i++) { t += s < 3 ? otherSlots[s] : 40; s++; }
         return t;
     }
     const tests = [
-        [3,1,400],[3,0,375],[0,4,240],[1,1,290],[2,2,375]
+        [3,1,405],[3,0,365],[0,4,300],[1,1,280],[2,2,385]
     ];
     let pass = true;
     for (const [p,g,exp] of tests) {
