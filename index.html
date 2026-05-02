@@ -133,6 +133,13 @@ footer a{color:var(--orange);text-decoration:none}
 <label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:8px;color:rgba(255,255,255,0.7)">Card Information</label>
 <div id="card-element"></div>
 <div id="card-errors" role="alert"></div>
+<div id="discountSection" style="margin:12px 0 4px;">
+  <div style="display:flex;gap:8px;align-items:center;">
+    <input type="text" id="discountCodeInput" placeholder="Discount code" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')applyDiscountCode()" style="flex:1;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.06);color:#fff;font-family:Montserrat,sans-serif;font-size:0.95rem;outline:none;transition:border .2s;">
+    <button onclick="applyDiscountCode()" style="padding:10px 18px;border-radius:8px;border:1px solid rgba(255,94,0,0.6);background:transparent;color:#FF5E00;font-family:Montserrat,sans-serif;font-weight:700;font-size:0.9rem;cursor:pointer;white-space:nowrap;transition:all .2s;">Apply</button>
+  </div>
+  <div id="discountMsg" style="font-size:0.8rem;margin-top:6px;padding-left:2px;min-height:18px;"></div>
+</div>
 <button class="pay-btn" id="payBtn" disabled onclick="handlePayment()">Select divisions to continue</button>
 <div class="stripe-badge">
 <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-1 16l-4-4 1.41-1.41L11 14.17l6.59-6.59L19 9l-8 8z"/></svg>
@@ -181,6 +188,32 @@ cardElement.mount('#card-element');
 cardElement.on('change', e => {
     document.getElementById('card-errors').textContent = e.error ? e.error.message : '';
 });
+
+/* ---- Discount Code State ---- */
+let activeDiscount = null; // { type: 'percent'|'fixed', value: number, code: string }
+
+function applyDiscountCode() {
+    const input = document.getElementById('discountCodeInput');
+    const msg = document.getElementById('discountMsg');
+    const code = (input.value || '').trim().toUpperCase();
+    if (code === 'USOPEN50%') {
+        activeDiscount = { type: 'percent', value: 50, code: 'USOPEN50%' };
+        msg.style.color = '#00C853'; msg.textContent = '✓ Code applied — 50% discount';
+        input.style.borderColor = '#00C853';
+    } else if (code === 'USOPEN50$') {
+        activeDiscount = { type: 'fixed', value: 50, code: 'USOPEN50$' };
+        msg.style.color = '#00C853'; msg.textContent = '✓ Code applied — $50 off';
+        input.style.borderColor = '#00C853';
+    } else if (code === '') {
+        msg.style.color = '#FF3B3B'; msg.textContent = 'Please enter a discount code.';
+        return;
+    } else {
+        activeDiscount = null;
+        msg.style.color = '#FF3B3B'; msg.textContent = '✗ Invalid discount code.';
+        input.style.borderColor = '#FF3B3B';
+    }
+    updateSummary();
+}
 
 /* ---- Division Data ---- */
 const EVENTS = ["Men's Singles","Women's Singles","Men's Doubles","Women's Doubles","Mixed Doubles"];
@@ -338,13 +371,27 @@ function updateSummary() {
     for (const l of lines) {
         html += `<div class="summary-line${l.locked ? ' locked' : ''}"><span class="label">${l.label}</span><span class="price">$${l.price}</span></div>`;
     }
-    html += `<div class="summary-total"><span>Estimated Total</span><span class="price">$${total}</span></div>`;
+    // Apply discount if active
+    let discountAmount = 0;
+    if (activeDiscount) {
+        if (activeDiscount.type === 'percent') {
+            discountAmount = Math.round(total * activeDiscount.value / 100);
+        } else {
+            discountAmount = Math.min(activeDiscount.value, total);
+        }
+    }
+    const finalTotal = total - discountAmount;
+
+    if (discountAmount > 0) {
+        html += `<div class="summary-line"><span class="label" style="color:#00C853">Discount (${activeDiscount.code})</span><span class="price" style="color:#00C853">-$${discountAmount}</span></div>`;
+    }
+    html += `<div class="summary-total"><span>Estimated Total</span><span class="price">$${finalTotal}</span></div>`;
     html += `<p class="summary-note">All pricing subject to change. Doubles/mixed entry fees apply per player.</p>`;
 
     summaryEl.innerHTML = html;
     btn.disabled = false;
-    btn.textContent = `Complete Registration & Pay $${total}`;
-    btn.dataset.total = total;
+    btn.textContent = `Complete Registration & Pay $${finalTotal}`;
+    btn.dataset.total = finalTotal;
 }
 
 /* ---- Payment Handler ---- */
@@ -382,7 +429,8 @@ async function handlePayment() {
                 playerName: firstName + ' ' + lastName,
                 playerEmail: playerEmail,
                 divisions: getSelectedDivisionsString(),
-                divisionCount: document.querySelectorAll('#divisionsContainer input[type="checkbox"]:checked').length
+                divisionCount: document.querySelectorAll('#divisionsContainer input[type="checkbox"]:checked').length,
+                discountCode: activeDiscount ? activeDiscount.code : ''
             })
         });
 
