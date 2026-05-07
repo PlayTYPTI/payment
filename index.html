@@ -140,7 +140,7 @@ footer a{color:var(--orange);text-decoration:none}
   </div>
   <div id="discountMsg" style="font-size:0.8rem;margin-top:6px;padding-left:2px;min-height:18px;"></div>
 </div>
-<div id="referralSection" style="margin:8px 0 4px;">
+<div id="referralSection" style="margin:8px 0 4px;display:none;">
   <div style="display:flex;gap:8px;align-items:center;">
     <input type="text" id="referralCodeInput" placeholder="Referral code (optional)" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')applyReferralCode()" style="flex:1;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.06);color:#fff;font-family:Montserrat,sans-serif;font-size:0.95rem;outline:none;transition:border .2s;">
     <button onclick="applyReferralCode()" style="padding:10px 18px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:rgba(255,255,255,0.5);font-family:Montserrat,sans-serif;font-weight:700;font-size:0.9rem;cursor:pointer;white-space:nowrap;transition:all .2s;">Apply</button>
@@ -208,13 +208,6 @@ function applyReferralCode() {
     const code = (input.value || '').trim().toUpperCase();
     if (code === '') {
         msg.style.color = '#FF3B3B'; msg.textContent = 'Please enter a referral code.';
-        return;
-    }
-    const hasProDivision = document.querySelectorAll('#divisionsContainer input[type="checkbox"][data-type="pro"]:checked').length > 0;
-    if (!hasProDivision) {
-        activeReferral = null;
-        msg.style.color = '#FF3B3B'; msg.textContent = '✗ Referral codes are only valid for Professional division entries.';
-        input.style.borderColor = '#FF3B3B';
         return;
     }
     activeReferral = code;
@@ -362,6 +355,12 @@ function updateSummary() {
         summaryEl.innerHTML = '<p class="empty-summary">Select divisions to see pricing.</p>';
         btn.disabled = true;
         btn.textContent = 'Select divisions to continue';
+        document.getElementById('referralSection').style.display = 'none';
+        if (activeReferral) {
+            activeReferral = null;
+            document.getElementById('referralCodeInput').value = '';
+            document.getElementById('referralMsg').textContent = '';
+        }
         return;
     }
 
@@ -370,6 +369,21 @@ function updateSummary() {
     const ordered = [...proItems, ...otherItems];
 
     const hasAnyPro = proItems.length > 0;
+
+    // Show referral section only when a Professional division is selected
+    const referralSection = document.getElementById('referralSection');
+    if (!hasAnyPro) {
+        referralSection.style.display = 'none';
+        // Clear referral state if Pro division was deselected
+        if (activeReferral) {
+            activeReferral = null;
+            document.getElementById('referralCodeInput').value = '';
+            document.getElementById('referralMsg').textContent = '';
+        }
+    } else {
+        referralSection.style.display = '';
+    }
+
     const membership = 50;
     const baseEntry = hasAnyPro ? 90 : 60;
 
