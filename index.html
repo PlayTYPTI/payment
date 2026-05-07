@@ -210,6 +210,13 @@ function applyReferralCode() {
         msg.style.color = '#FF3B3B'; msg.textContent = 'Please enter a referral code.';
         return;
     }
+    const hasProDivision = document.querySelectorAll('#divisionsContainer input[type="checkbox"][data-type="pro"]:checked').length > 0;
+    if (!hasProDivision) {
+        activeReferral = null;
+        msg.style.color = '#FF3B3B'; msg.textContent = '✗ Referral codes are only valid for Professional division entries.';
+        input.style.borderColor = '#FF3B3B';
+        return;
+    }
     activeReferral = code;
     msg.style.color = 'rgba(255,255,255,0.45)';
     msg.textContent = `✓ Referral code "${code}" applied`;
